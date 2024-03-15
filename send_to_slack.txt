@@ -1,0 +1,38 @@
+#this lambda_handler sends message to slack app when the server is unavaible or change in the alarm status
+import json
+import urllib3
+
+slack_webhook_url = "https://hooks.slack.com/services/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"
+
+def lambda_handler(event, context):
+    if 'Records' in event:
+        sns_message = json.loads(event['Records'][0]['Sns']['Message'])
+        alarm_name = sns_message['AlarmName']
+        alarm_state = sns_message['NewStateValue']
+        alarm_description = sns_message.get('AlarmDescription', 'No description provided')
+        region = sns_message['Region']
+        
+        slack_message = {
+            "text": f"CloudWatch Alarm '{alarm_name}' in '{region}' region has entered '{alarm_state}' state.\n{alarm_description}"
+        }
+        
+        http = urllib3.PoolManager()
+        response = http.request(
+            "POST",
+            slack_webhook_url,
+            body=json.dumps(slack_message),
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        print("Slack response:", response.status)
+
+        return {
+            'statusCode': response.status,
+            'body': 'Message sent to Slack successfully.'
+        }
+    else:
+        print("Event does not contain 'Records' key")
+        return {
+            'statusCode': 400,
+            'body': 'Event does not contain "Records" key.'
+        }

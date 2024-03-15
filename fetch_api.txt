@@ -1,0 +1,44 @@
+#this lambda handler fetches the api and loads the data to dynamo db table
+#used dynamo db because rds is not working
+
+import json
+import boto3
+import urllib.request
+from datetime import datetime
+# Define your DynamoDB table name
+TABLE_NAME = 'apidata1'
+
+def lambda_handler(event, context):
+    api_endpoint = "http://api.open-notify.org/iss-now.json"
+    
+    # Fetch data from the API
+    response = urllib.request.urlopen(api_endpoint)
+    json_data = json.loads(response.read().decode())
+    
+    # Initialize DynamoDB client
+    dynamodb = boto3.client('dynamodb')
+    
+    # Extract data from the JSON
+    timestamp = str(json_data['timestamp'])  # Convert timestamp to string
+    longitude = json_data['iss_position']['longitude']
+    latitude = json_data['iss_position']['latitude']
+    message = json_data['message']
+    current_timestamp = datetime.now().isoformat()
+    
+    # Insert data into DynamoDB
+    dynamodb.put_item(
+        TableName=TABLE_NAME,
+        Item={
+            'timestamp': {'N': timestamp},  # Assuming 'timestamp' is the primary key
+            'longitude': {'S': longitude},
+            'latitude': {'S': latitude},
+            'message': {'S': message},
+            'created_at': {'S': current_timestamp}
+        }
+    )
+    
+    # Return success response
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Data inserted into DynamoDB successfully')
+    }
